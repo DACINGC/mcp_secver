@@ -53,6 +53,26 @@ namespace UnityMCP
         public double scale;
         public string assetType;
         public string prefix;
+
+        public string sourceObjectName;
+        public string variantPrefix;
+        public double spacing;
+        public string objectPrefix;
+        public string filePrefix;
+        public string propertyName;
+        public string propertyType;
+        public string value;
+        public double scaleMultiplier;
+        public bool scaleTransform;
+        public bool scaleParticleSize;
+        public bool scaleParticleSpeed;
+        public double durationMultiplier;
+        public double speedMultiplier;
+        public bool affectParticles;
+        public bool affectLights;
+        public bool affectRenderers;
+        public bool affectLines;
+        public int count;
     }
 
     [Serializable]
@@ -66,6 +86,9 @@ namespace UnityMCP
         public List<SceneObjectInfo> objects;
         public List<string> assetPaths;
         public ObjectInfo objectInfo;
+        public List<string> objectNames;
+        public List<MaterialPropertyInfo> materialProperties;
+        public EffectReport effectReport;
 
         public ResponseModel()
         {
@@ -77,6 +100,9 @@ namespace UnityMCP
             objects = null;
             assetPaths = null;
             objectInfo = null;
+            objectNames = null;
+            materialProperties = null;
+            effectReport = null;
         }
     }
 
@@ -107,9 +133,51 @@ namespace UnityMCP
         public Vector3Info rotation;
         public Vector3Info scale;
         public List<string> components;
-        public List<ObjectInfo> children;
+        public List<ChildObjectInfo> children;
         public int particleSystemCount;
         public int lightCount;
         public int rendererCount;
+    }
+
+    [Serializable]
+    public class ChildObjectInfo
+    {
+        public string name;
+        public bool activeSelf;
+        public Vector3Info position;
+        public Vector3Info rotation;
+        public Vector3Info scale;
+        public List<string> components;
+        public int childCount;
+        public int particleSystemCount;
+        public int lightCount;
+        public int rendererCount;
+    }
+
+    [Serializable]
+    public class MaterialPropertyInfo
+    {
+        public string name;
+        public string displayName;
+        public string type;
+        public string currentValueString;
+    }
+
+    [Serializable]
+    public class EffectReport
+    {
+        public string objectName;
+        public string generatedTime;
+        public Vector3Info position;
+        public Vector3Info rotation;
+        public Vector3Info scale;
+        public int childCount;
+        public int particleSystemCount;
+        public int lightCount;
+        public int rendererCount;
+        public int lineRendererCount;
+        public int trailRendererCount;
+        public List<string> components;
+        public List<string> materialPaths;
     }
 }

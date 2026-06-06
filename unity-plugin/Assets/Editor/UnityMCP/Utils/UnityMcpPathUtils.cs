@@ -128,6 +128,58 @@ namespace UnityMCP.Utils
             return true;
         }
 
+        public static bool IsSafeReportPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return false;
+
+            if (path.Contains(".."))
+                return false;
+
+            string normalized = path.Replace("\\", "/");
+            if (!normalized.StartsWith("Assets/AI_Generated/Reports/"))
+                return false;
+
+            if (!normalized.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return true;
+        }
+
+        public static bool IsSafeReadableAssetPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return false;
+
+            if (path.Contains(".."))
+                return false;
+
+            string normalized = path.Replace("\\", "/");
+            if (!normalized.StartsWith("Assets/"))
+                return false;
+
+            return true;
+        }
+
+        public static string GetReportSavePath(string fileName)
+        {
+            string baseFolder = "Assets/AI_Generated/Reports";
+            EnsureDirectoryExists(baseFolder);
+
+            string safeName = SanitizeFileName(fileName);
+            string path = $"{baseFolder}/{safeName}.json";
+
+            if (File.Exists(path))
+            {
+                int counter = 1;
+                while (File.Exists($"{baseFolder}/{safeName}_{counter}.json"))
+                    counter++;
+                path = $"{baseFolder}/{safeName}_{counter}.json";
+            }
+
+            return path;
+        }
+
         public static string GetPrefabSavePath(string objectName)
         {
             string baseFolder = "Assets/AI_Generated/Prefabs";

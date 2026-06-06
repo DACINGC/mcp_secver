@@ -38,7 +38,20 @@ namespace UnityMCP
                 { "/instantiate-prefab", (req) => UnityMcpTemplateTools.InstantiatePrefab(req) },
                 { "/list-generated-assets", (req) => UnityMcpAssetTools.ListGeneratedAssets(req) },
                 { "/clear-ai-generated-scene-objects", (req) => UnityMcpAssetTools.ClearAiGeneratedSceneObjects(req) },
-                { "/get-object-info", (req) => UnityMcpAssetTools.GetObjectInfo(req) }
+                { "/get-object-info", (req) => UnityMcpAssetTools.GetObjectInfo(req) },
+                { "/update-particle-system", (req) => UnityMcpTuningTools.UpdateParticleSystem(req) },
+                { "/update-light", (req) => UnityMcpTuningTools.UpdateLight(req) },
+                { "/update-line-renderer", (req) => UnityMcpTuningTools.UpdateLineRenderer(req) },
+                { "/recolor-effect", (req) => UnityMcpTuningTools.RecolorEffect(req) },
+                { "/scale-effect", (req) => UnityMcpTuningTools.ScaleEffect(req) },
+                { "/adjust-effect-timing", (req) => UnityMcpTuningTools.AdjustEffectTiming(req) },
+                { "/create-effect-variants", (req) => UnityMcpVariantTools.CreateEffectVariants(req) },
+                { "/capture-effect-variants", (req) => UnityMcpVariantTools.CaptureEffectVariants(req) },
+                { "/list-material-properties", (req) => UnityMcpShaderTools.ListMaterialProperties(req) },
+                { "/set-material-property", (req) => UnityMcpShaderTools.SetMaterialProperty(req) },
+                { "/set-vfx-graph-property", (req) => UnityMcpShaderTools.SetVfxGraphProperty(req) },
+                { "/create-vfx-graph-from-template", (req) => UnityMcpShaderTools.CreateVfxGraphFromTemplate(req) },
+                { "/export-effect-report", (req) => UnityMcpReportTools.ExportEffectReport(req) }
             };
 
             _getRoutes = new Dictionary<string, Func<string>>

@@ -159,14 +159,59 @@ namespace UnityMCP.Tools
                 int maxChildren = Mathf.Min(childCount, 100);
                 if (maxChildren > 0)
                 {
-                    info.children = new List<ObjectInfo>();
+                    info.children = new List<ChildObjectInfo>();
                     for (int i = 0; i < maxChildren; i++)
                     {
                         Transform child = go.transform.GetChild(i);
-                        info.children.Add(BuildObjectInfo(child.gameObject, true, depth + 1));
+                        info.children.Add(BuildChildObjectInfo(child.gameObject, depth + 1));
                     }
                 }
             }
+
+            return info;
+        }
+
+        private static ChildObjectInfo BuildChildObjectInfo(GameObject go, int depth)
+        {
+            var info = new ChildObjectInfo
+            {
+                name = go.name,
+                activeSelf = go.activeSelf,
+                position = new Vector3Info
+                {
+                    x = go.transform.position.x,
+                    y = go.transform.position.y,
+                    z = go.transform.position.z
+                },
+                rotation = new Vector3Info
+                {
+                    x = go.transform.eulerAngles.x,
+                    y = go.transform.eulerAngles.y,
+                    z = go.transform.eulerAngles.z
+                },
+                scale = new Vector3Info
+                {
+                    x = go.transform.localScale.x,
+                    y = go.transform.localScale.y,
+                    z = go.transform.localScale.z
+                },
+                components = new List<string>(),
+                particleSystemCount = 0,
+                lightCount = 0,
+                rendererCount = 0
+            };
+
+            var components = go.GetComponents<Component>();
+            foreach (var comp in components)
+            {
+                if (comp != null)
+                    info.components.Add(comp.GetType().Name);
+            }
+
+            info.particleSystemCount = go.GetComponents<ParticleSystem>().Length;
+            info.lightCount = go.GetComponents<Light>().Length;
+            info.rendererCount = go.GetComponents<Renderer>().Length;
+            info.childCount = go.transform.childCount;
 
             return info;
         }
