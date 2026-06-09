@@ -1,39 +1,8 @@
 # Stage 3: Advanced VFX Tools
 
-## 新增能力
+> 本篇为高级 VFX 特效的详细参考文档。工具列表和端点已在 README 中完整列出，此处仅保留 **文档内独有的参考信息**。
 
-实现 6 个语义化高级游戏特效，每个特效由多个 Unity 组件（ParticleSystem、LineRenderer、Light）组合生成：
-
-1. **魔法传送门** — 环形粒子 + 核心粒子 + 飞散火花 + 旋转光环（LineRenderer）+ 点光源
-2. **火焰爆炸** — 火焰爆发 + 烟雾 + 飞溅火花（带拖尾）+ 闪光
-3. **雷电命中** — 锯齿闪电主光束 + 分支闪电 + 撞击火花 + 光晕
-4. **治疗光环** — 地面光环（LineRenderer）+ 上升粒子 + 闪烁星芒 + 柔和绿光
-5. **烟雾爆发** — 大烟雾团 + 飘散烟雾 + 地面尘土环
-6. **刀光/斩击拖尾** — 弧形刀光（LineRenderer）+ 飞散粒子 + 闪光
-
-## Python MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `create_magic_portal` | 创建魔法传送门 |
-| `create_fire_explosion` | 创建火焰爆炸 |
-| `create_lightning_hit` | 创建雷电命中 |
-| `create_heal_aura` | 创建治疗光环 |
-| `create_smoke_burst` | 创建烟雾爆发 |
-| `create_slash_trail` | 创建刀光拖尾 |
-
-## Unity HTTP Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/create-magic-portal` | 创建传送门 |
-| POST | `/create-fire-explosion` | 创建火焰爆炸 |
-| POST | `/create-lightning-hit` | 创建雷电命中 |
-| POST | `/create-heal-aura` | 创建治疗光环 |
-| POST | `/create-smoke-burst` | 创建烟雾爆发 |
-| POST | `/create-slash-trail` | 创建刀光拖尾 |
-
-## 工具参数说明
+## 工具参数详情
 
 ### create_magic_portal
 
@@ -104,6 +73,7 @@
 ## 生成的 Unity 对象结构
 
 ### MagicPortal
+
 ```
 AI_Test_Magic_Portal
 ├─ Portal_Ring_Particles (ParticleSystem, Circle, Ring color, Alpha fade)
@@ -114,6 +84,7 @@ AI_Test_Magic_Portal
 ```
 
 ### FireExplosion
+
 ```
 AI_Test_Fire_Explosion
 ├─ Fire_Burst (ParticleSystem, Burst, Orange gradient, Size burst)
@@ -123,6 +94,7 @@ AI_Test_Fire_Explosion
 ```
 
 ### LightningHit
+
 ```
 AI_Test_Lightning_Hit
 ├─ Lightning_Main_Bolt (LineRenderer, Zigzag from top to ground)
@@ -132,6 +104,7 @@ AI_Test_Lightning_Hit
 ```
 
 ### HealAura
+
 ```
 AI_Test_Heal_Aura
 ├─ Aura_Ring (LineRenderer, Circle on ground)
@@ -141,6 +114,7 @@ AI_Test_Heal_Aura
 ```
 
 ### SmokeBurst
+
 ```
 AI_Test_Smoke_Burst
 ├─ Smoke_Main (ParticleSystem, Burst, Large gray, Noise)
@@ -149,63 +123,13 @@ AI_Test_Smoke_Burst
 ```
 
 ### SlashTrail
+
 ```
 AI_Test_Slash_Trail
 ├─ Slash_Arc (LineRenderer, Semi-circle arc)
 ├─ Slash_Sparks (ParticleSystem, Burst, Along arc)
 └─ Slash_Light (Point Light, Brief flash)
 ```
-
-## PowerShell 测试方式
-
-```powershell
-# 确保 Unity 已启动且 HTTP Server 已运行
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-./test-stage3.ps1
-```
-
-## 常见问题
-
-### 生成了对象但看起来不明显
-
-原因：
-1. 粒子系统默认可能未播放 — 粒子的 `playOnAwake` 默认为 true，不需要手动调用 Play
-2. 场景视图可能离特效太远 — 选中对象按 F 聚焦
-3. 粒子大小或颜色 Alpha 太低
-
-### 发光不明显
-
-1. 检查场景是否使用 URP，且 Post Processing 是否启用
-2. LineRenderer 使用 `CreateLineRendererMaterial` 会自发光，但在 Built-in 中需要开启 `Emission GI`
-3. 建议在 URP 项目中使用
-
-### URP/Built-in 下材质差异
-
-LineRenderer 和粒子材质自动适配：
-- 优先使用 `Universal Render Pipeline/Particles/Unlit`
-- 回退到 `Standard` 或 `Unlit/Color`
-
-### LineRenderer 看不到
-
-1. 检查宽度是否太小（建议 0.02~0.3）
-2. 材质颜色 Alpha 是否 > 0
-3. 确认场景坐标下 LineRenderer 不在物体内部
-4. 尝试在 Scene 视图不同角度查看
-
-### Prefab 保存失败
-
-1. 确保该名称的 Prefab 没有被打开关闭冲突
-2. 自动检查 `Assets/AI_Generated/Prefabs/` 目录是否存在并创建
-3. 同名 Prefab 会自动编号（xxx_1.prefab）
-
-### 粒子没有自动播放
-
-所有粒子系统 `playOnAwake` 默认为 true。如果粒子停止：
-
-1. 选中对象，查看 Particle System 组件
-2. 点击 `Open Editor` 查看预览
-3. 检查 `Simulation Speed` 是否为 0
-4. 非循环特效需要手动切换预览时间轴
 
 ## 调参建议
 
@@ -219,10 +143,3 @@ LineRenderer 和粒子材质自动适配：
 | emission rate | 粒子发射率（内部设定） | 20~120 |
 | start size | 粒子大小 | 0.05~1.0 |
 | light intensity | 光源强度 | 2~12 |
-
-## 复用阶段一/二
-
-- 可以使用 `create_particle_effect` 创建简单粒子
-- 使用 `create_material` 预生成自定义材质
-- 使用 `assign_material` 替换特效子对象材质
-- 使用 `save_prefab` 单独保存某些部分
