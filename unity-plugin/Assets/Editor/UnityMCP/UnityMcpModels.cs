@@ -73,6 +73,28 @@ namespace UnityMCP
         public bool affectRenderers;
         public bool affectLines;
         public int count;
+
+        // --- EXTEND_SCENE 新增字段 ---
+        public string primitiveType;
+        public string style;
+        public double groundSize;
+        public bool includeWalls;
+        public bool includeLights;
+        public string shape;
+        public double strength;
+        public string layerType;
+        public string texturePath;
+        public string pattern;
+        public bool fogEnabled;
+        public string fogColor;
+        public string fogMode;
+        public double fogDensity;
+        public string ambientColor;
+        public double ambientIntensity;
+        public bool keepLights;
+        public bool keepTerrain;
+        public bool createDefault;
+        public string parent;
     }
 
     [Serializable]

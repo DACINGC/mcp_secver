@@ -12,6 +12,9 @@ from tools.tuning_tools import register_tuning_tools
 from tools.variant_tools import register_variant_tools
 from tools.shader_tools import register_shader_tools
 from tools.report_tools import register_report_tools
+from tools.terrain_tools import register_terrain_tools
+from tools.environment_tools import register_environment_tools
+from tools.layout_tools import register_layout_tools
 
 mcp = FastMCP("unity-mcp-server")
 
@@ -27,6 +30,9 @@ register_tuning_tools(mcp)
 register_variant_tools(mcp)
 register_shader_tools(mcp)
 register_report_tools(mcp)
+register_terrain_tools(mcp)
+register_environment_tools(mcp)
+register_layout_tools(mcp)
 
 if __name__ == "__main__":
     mcp.run()

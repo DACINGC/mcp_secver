@@ -360,6 +360,13 @@ AVAILABLE_COMMANDS = {
                 "method": "POST",
             },
             {
+                "syntax": 'create camera named <name> [at x y z] [rx ry rz]',
+                "example": 'create camera named MainCamera at 0 1 -10',
+                "description": "创建摄像机",
+                "endpoint": "/create-camera",
+                "method": "POST",
+            },
+            {
                 "syntax": 'create light named <name> [color #RRGGBB] [intensity n] [range n] [at x y z]',
                 "example": 'create light named MyLight color #FF4400 intensity 3 range 5 at 0 2 0',
                 "description": "创建点光源",
@@ -463,6 +470,66 @@ AVAILABLE_COMMANDS = {
                 "example": 'assign material Assets/AI_Generated/Materials/MyMat.mat to MyObject',
                 "description": "为物体指定材质",
                 "endpoint": "/assign-material",
+                "method": "POST",
+            },
+        ]
+    },
+    "场景 & 地形 (Scene & Terrain)": {
+        "commands": [
+            {
+                "syntax": 'create test suite named <name>',
+                "example": 'create test suite named AI_TestSuite',
+                "description": "创建测试容器根对象，所有 AI 生成将放入此容器以便安全重置",
+                "endpoint": "/create-test-suite",
+                "method": "POST",
+            },
+            {
+                "syntax": 'create scene named <name> [color #RRGGBB] [size n] [walls true/false] [lights true/false] [parent <name>]',
+                "example": 'create scene named DemoScene color #4CAF50 size 30 walls true lights true parent AI_TestSuite',
+                "description": "创建完整示例场景（地面 + 光照 + 围墙）",
+                "endpoint": "/create-sample-scene",
+                "method": "POST",
+            },
+            {
+                "syntax": 'create terrain named <name> [width n] [length n] [height n] [resolution n]',
+                "example": 'create terrain named MyTerrain width 500 length 500 height 50 resolution 513',
+                "description": "创建地形对象",
+                "endpoint": "/create-terrain",
+                "method": "POST",
+            },
+            {
+                "syntax": 'sculpt <name> shape <shape> [strength n]',
+                "example": 'sculpt MyTerrain shape mountain strength 0.8',
+                "description": "雕刻地形高度图 (flat/smooth/mountain/valley/random)",
+                "endpoint": "/sculpt-terrain",
+                "method": "POST",
+            },
+            {
+                "syntax": 'paint <name> layer <type>',
+                "example": 'paint MyTerrain layer grass',
+                "description": "为地形贴图 (grass/sand/rock/snow)",
+                "endpoint": "/paint-terrain",
+                "method": "POST",
+            },
+            {
+                "syntax": 'environment [fog true/false] [fogColor #RRGGBB] [fogMode mode] [fogDensity n] [ambient #RRGGBB] [ambientIntensity n]',
+                "example": 'environment fog true fogColor #666688 fogMode exponential fogDensity 0.02 ambient #FFEECC ambientIntensity 1.2',
+                "description": "设置环境雾效和光照",
+                "endpoint": "/set-environment",
+                "method": "POST",
+            },
+            {
+                "syntax": 'layout <name> pattern <pattern> [count n] [spacing n] [radius n]',
+                "example": 'layout MyCube pattern grid count 16 spacing 2',
+                "description": "批量布局物体 (grid/circle/random/line)",
+                "endpoint": "/layout-objects",
+                "method": "POST",
+            },
+            {
+                "syntax": 'reset scene [keepLights true/false] [keepTerrain true/false]',
+                "example": 'reset scene keepLights true keepTerrain true',
+                "description": "清空场景（可保留灯光和地形）",
+                "endpoint": "/reset-scene",
                 "method": "POST",
             },
         ]
@@ -606,6 +673,8 @@ def parse_command(text: str) -> dict:
     # ========== 基础物体 ==========
     if cmd_lower.startswith("create empty"):
         return _parse_create_empty(parts, raw)
+    if cmd_lower.startswith("create camera"):
+        return _parse_create_camera(parts, raw)
     if cmd_lower.startswith("create light"):
         return _parse_create_light(parts, raw)
     if cmd_lower.startswith("create cube"):
@@ -632,6 +701,24 @@ def parse_command(text: str) -> dict:
         return _parse_create_smoke(parts, raw)
     if cmd_lower.startswith("create slash"):
         return _parse_create_slash(parts, raw)
+
+    # ========== 场景 & 地形 (EXTEND_SCENE) ==========
+    if cmd_lower.startswith("create test suite"):
+        return _parse_create_test_suite(parts, raw)
+    if cmd_lower.startswith("create scene"):
+        return _parse_create_sample_scene(parts, raw)
+    if cmd_lower.startswith("create terrain"):
+        return _parse_create_terrain(parts, raw)
+    if cmd_lower.startswith("sculpt "):
+        return _parse_sculpt_terrain(parts, raw)
+    if cmd_lower.startswith("paint "):
+        return _parse_paint_terrain(parts, raw)
+    if cmd_lower.startswith("environment"):
+        return _parse_set_environment(parts, raw)
+    if cmd_lower.startswith("layout "):
+        return _parse_layout_objects(parts, raw)
+    if cmd_lower.startswith("reset scene"):
+        return _parse_reset_scene(parts, raw)
 
     # ========== 材质 ==========
     if cmd_lower.startswith("create material"):
@@ -759,6 +846,14 @@ def _parse_create_empty(parts, raw):
     return {"success": True, "endpoint": "/create-empty", "method": "POST", "payload": {"name": name, **pos}}
 
 
+def _parse_create_camera(parts, raw):
+    name = _get_named(parts, raw, "MainCamera")
+    pos = _parse_position(parts, raw)
+    parent = _get_kwarg(parts, "parent", "")
+    return {"success": True, "endpoint": "/create-camera", "method": "POST",
+            "payload": {"name": name, "parent": parent, **pos}}
+
+
 def _parse_create_light(parts, raw):
     name = _get_named(parts, raw, "PointLight")
     pos = _parse_position(parts, raw)
@@ -775,8 +870,9 @@ def _parse_create_primitive(parts, raw, primitive_type):
     color = _get_kwarg(parts, "color", "")
     size = _get_kwarg(parts, "size", 1.0, float)
     radius = _get_kwarg(parts, "radius", 0.5, float)
+    parent = _get_kwarg(parts, "parent", "")
     return {"success": True, "endpoint": "/create-primitive", "method": "POST",
-            "payload": {"primitiveType": primitive_type, "name": name, "color": color, "size": size, "radius": radius, **pos}}
+            "payload": {"primitiveType": primitive_type, "name": name, "color": color, "size": size, "radius": radius, "parent": parent, **pos}}
 
 
 def _parse_create_particle(parts, raw):
@@ -855,6 +951,90 @@ def _parse_create_slash(parts, raw):
     duration = _get_kwarg(parts, "duration", 0.5, float)
     return {"success": True, "endpoint": "/create-slash-trail", "method": "POST",
             "payload": {"effectName": name, "mainColor": color, "length": length, "width": width, "duration": duration, "saveAsPrefab": False}}
+
+
+def _parse_create_test_suite(parts, raw):
+    name = _get_named(parts, raw, "AI_TestSuite")
+    return {"success": True, "endpoint": "/create-test-suite", "method": "POST",
+            "payload": {"name": name}}
+
+
+def _parse_create_sample_scene(parts, raw):
+    name = _get_named(parts, raw, "SampleScene")
+    color = _get_kwarg(parts, "color", "#4CAF50")
+    size = _get_kwarg(parts, "size", 20.0, float)
+    walls = _get_kwarg(parts, "walls", "false").lower() in ("true", "1", "yes")
+    lights = _get_kwarg(parts, "lights", "true").lower() in ("true", "1", "yes")
+    parent = _get_kwarg(parts, "parent", "")
+    return {"success": True, "endpoint": "/create-sample-scene", "method": "POST",
+            "payload": {"name": name, "groundColor": color, "groundSize": size,
+                         "includeWalls": walls, "includeLights": lights, "parent": parent}}
+
+
+def _parse_create_terrain(parts, raw):
+    name = _get_named(parts, raw, "Terrain")
+    width = _get_kwarg(parts, "width", 500, int)
+    length = _get_kwarg(parts, "length", 500, int)
+    height = _get_kwarg(parts, "height", 50.0, float)
+    resolution = _get_kwarg(parts, "resolution", 513, int)
+    return {"success": True, "endpoint": "/create-terrain", "method": "POST",
+            "payload": {"name": name, "width": width, "length": length,
+                         "height": height, "resolution": resolution}}
+
+
+def _parse_sculpt_terrain(parts, raw):
+    idx = 1
+    name = parts[idx] if len(parts) > idx else ""
+    if not name:
+        return {"success": False, "error": "格式: sculpt <name> shape <shape> [strength n]"}
+    shape = _get_kwarg(parts, "shape", "smooth")
+    strength = _get_kwarg(parts, "strength", 0.5, float)
+    return {"success": True, "endpoint": "/sculpt-terrain", "method": "POST",
+            "payload": {"objectName": name, "shape": shape, "strength": strength}}
+
+
+def _parse_paint_terrain(parts, raw):
+    idx = 1
+    name = parts[idx] if len(parts) > idx else ""
+    if not name:
+        return {"success": False, "error": "格式: paint <name> layer <type>"}
+    layer = _get_kwarg(parts, "layer", "grass")
+    return {"success": True, "endpoint": "/paint-terrain", "method": "POST",
+            "payload": {"objectName": name, "layerType": layer}}
+
+
+def _parse_set_environment(parts, raw):
+    fog = _get_kwarg(parts, "fog", "false").lower() in ("true", "1", "yes")
+    fog_color = _get_kwarg(parts, "fogColor", "#808080")
+    fog_mode = _get_kwarg(parts, "fogMode", "exponential")
+    fog_density = _get_kwarg(parts, "fogDensity", 0.01, float)
+    ambient = _get_kwarg(parts, "ambient", "#FFFFFF")
+    ambient_intensity = _get_kwarg(parts, "ambientIntensity", 1.0, float)
+    return {"success": True, "endpoint": "/set-environment", "method": "POST",
+            "payload": {"fogEnabled": fog, "fogColor": fog_color, "fogMode": fog_mode,
+                         "fogDensity": fog_density, "ambientColor": ambient,
+                         "ambientIntensity": ambient_intensity}}
+
+
+def _parse_layout_objects(parts, raw):
+    idx = 1
+    name = parts[idx] if len(parts) > idx else ""
+    if not name:
+        return {"success": False, "error": "格式: layout <name> pattern <pattern> [count n] [spacing n] [radius n]"}
+    pattern = _get_kwarg(parts, "pattern", "grid")
+    count = _get_kwarg(parts, "count", 10, int)
+    spacing = _get_kwarg(parts, "spacing", 2.0, float)
+    radius = _get_kwarg(parts, "radius", 5.0, float)
+    return {"success": True, "endpoint": "/layout-objects", "method": "POST",
+            "payload": {"objectName": name, "pattern": pattern,
+                         "count": count, "spacing": spacing, "radius": radius}}
+
+
+def _parse_reset_scene(parts, raw):
+    keep_lights = _get_kwarg(parts, "keepLights", "false").lower() in ("true", "1", "yes")
+    keep_terrain = _get_kwarg(parts, "keepTerrain", "false").lower() in ("true", "1", "yes")
+    return {"success": True, "endpoint": "/reset-scene", "method": "POST",
+            "payload": {"keepLights": keep_lights, "keepTerrain": keep_terrain}}
 
 
 def _parse_create_material(parts, raw):

@@ -1,6 +1,6 @@
 # 🎮 Unity MCP Server
 
-> **让 AI 助手通过 MCP 协议直接操控 Unity Editor —— 创建场景、粒子特效、材质灯光、Prefab，一键调参、变体截图、报告导出**
+> **让 AI 助手通过 MCP 协议或 Shell 命令直接操控 Unity Editor —— 创建场景/地形、粒子特效、材质灯光、3D 图元房屋、摄像机，安全容器化管理测试内容**
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
 ![Unity](https://img.shields.io/badge/Unity-2021~2023_LTS-222222?logo=unity&logoColor=white)
@@ -22,13 +22,14 @@
 - [7. 文本命令系统](#7-文本命令系统)
 - [8. Unity Editor 仪表盘](#8-unity-editor-仪表盘)
 - [9. MCP Client 配置](#9-mcp-client-配置)
-- [10. MCP 工具参考](#10-mcp-工具参考)
-- [11. HTTP API 参考](#11-http-api-参考)
-- [12. Agent 工作流指南](#12-agent-工作流指南)
-- [13. 扩展开发](#13-扩展开发)
-- [14. 安全设计](#14-安全设计)
-- [15. 常见问题排查](#15-常见问题排查)
-- [16. 路线图](#16-路线图)
+- [10. Shell 命令操控 Unity](#10-shell-命令操控-unity)
+- [11. MCP 工具参考](#11-mcp-工具参考)
+- [12. HTTP API 参考](#12-http-api-参考)
+- [13. Agent 工作流指南](#13-agent-工作流指南)
+- [14. 扩展开发](#14-扩展开发)
+- [15. 安全设计](#15-安全设计)
+- [16. 常见问题排查](#16-常见问题排查)
+- [17. 路线图](#17-路线图)
 
 ---
 
@@ -38,7 +39,7 @@ Unity MCP Server 由 **两大组件** 构成，通过 MCP 协议在 AI 与 Unity
 
 | 组件 | 语言 | 职责 |
 |------|------|------|
-| 🐍 **Python MCP Server** | Python | 实现 MCP 协议，暴露 40 个工具给 AI 客户端，通过 HTTP 转发请求到 Unity |
+| 🐍 **Python MCP Server** | Python | 实现 MCP 协议，暴露 48 个工具给 AI 客户端，通过 HTTP 转发请求到 Unity |
 | 🎯 **Unity Editor 插件** | C# | 内嵌 HTTP 服务器，接收请求并调用 Unity API 操作场景、资源，**Editor 主线程安全执行** |
 
 > **MCP（Model Context Protocol）** 是 Anthropic 推出的开放协议，让 AI 模型能够安全地发现和调用外部工具。
@@ -153,7 +154,7 @@ python server.py
 │   ├── __init__.py
 │   ├── unity_http.py              # HTTP 请求封装（get/post_to_unity）
 │   ├── connection_tools.py        # 连接测试
-│   ├── scene_tools.py             # 场景操作
+│   ├── scene_tools.py             # 场景操作 + 图元/摄像机/测试容器/重置
 │   ├── vfx_tools.py               # VFX 创建（6 种特效）
 │   ├── material_tools.py          # 材质系统
 │   ├── prefab_tools.py            # Prefab 保存/实例化
@@ -163,7 +164,10 @@ python server.py
 │   ├── tuning_tools.py            # 特效调优
 │   ├── variant_tools.py           # 变体工具
 │   ├── shader_tools.py            # Shader/VFX Graph
-│   └── report_tools.py            # 报告导出
+│   ├── report_tools.py            # 报告导出
+│   ├── terrain_tools.py           # 地形创建/雕刻/贴图
+│   ├── environment_tools.py       # 环境(雾效/环境光)
+│   └── layout_tools.py            # 批量布局(grid/circle/random/line)
 │
 ├── 📂 templates/
 │   └── dashboard.html             # Web Dashboard 前端（深色主题）
@@ -173,10 +177,10 @@ python server.py
 │       ├── UnityMcpDashboard.cs   # 仪表盘 EditorWindow（F12 打开）
 │       ├── UnityMcpHttpServer.cs  # HTTP 服务器（:8765）
 │       ├── UnityMcpModels.cs      # 请求/响应模型
-│       ├── UnityMcpRouter.cs      # 路由分发（36 POST + 2 GET）
+│       ├── UnityMcpRouter.cs      # 路由分发（46 POST + 2 GET）
 │       ├── 📂 Tools/              # C# 工具实现
 │       │   ├── UnityMcpConnectionTools.cs
-│       │   ├── UnityMcpSceneTools.cs
+│       │   ├── UnityMcpSceneTools.cs    # +图元/摄像机/测试容器/安全重置
 │       │   ├── UnityMcpVfxTools.cs
 │       │   ├── UnityMcpMaterialTools.cs
 │       │   ├── UnityMcpPrefabTools.cs
@@ -186,22 +190,15 @@ python server.py
 │       │   ├── UnityMcpTuningTools.cs
 │       │   ├── UnityMcpVariantTools.cs
 │       │   ├── UnityMcpShaderTools.cs
-│       │   └── UnityMcpReportTools.cs
+│       │   ├── UnityMcpReportTools.cs
+│       │   ├── UnityMcpTerrainTools.cs       # 地形
+│       │   ├── UnityMcpEnvironmentTools.cs   # 环境
+│       │   └── UnityMcpLayoutTools.cs        # 布局
 │       └── 📂 Utils/
 │           ├── UnityMcpColorUtils.cs       # HTML 颜色解析
 │           ├── UnityMcpPathUtils.cs         # 安全路径校验
 │           ├── UnityMcpResponseUtils.cs     # JSON 响应封装
 │           └── UnityMcpVfxUtils.cs          # VFX 工具函数
-│
-├── 📂 docs/
-│   ├── stage2-materials.md        # 材质系统详细文档
-│   ├── stage3-advanced-vfx.md     # 高级 VFX 详细文档
-│   └── stage4-preview-template-workflow.md  # 预览与工作流详细文档
-│
-├── 🧪 test-stage2.ps1             # 材质系统测试
-├── 🧪 test-stage3.ps1             # 高级 VFX 测试
-├── 🧪 test-stage4.ps1             # 预览与工作流测试
-└── 🧪 test-stage5.ps1             # 调优/变体/Shader/报告测试
 ```
 
 ---
@@ -216,6 +213,28 @@ python server.py
 | Transform 控制 | 设置位置/旋转/缩放 |
 | 场景列举 | 查询当前场景所有物体 |
 | 物体信息查询 | 获取物体的组件、材质、变换等详细信息 |
+| ✅ 创建 3D 图元 | Cube/Sphere/Capsule/Cylinder/Plane/Quad，支持颜色和缩放 |
+| ✅ 创建摄像机 | 带 Camera 组件的摄像机对象，支持位置/旋转 |
+| ✅ 重置场景 | 安全模式：默认保留 Camera 和 Directional Light |
+| ✅ 测试容器 | `init_test_suite` 创建根容器，所有物体放入容器，一键安全清理 |
+
+### 🏔️ 场景 & 地形（新增）
+
+| 能力 | 描述 |
+|------|------|
+| ✅ 创建地形 | Terrain 对象，配置宽/长/高/分辨率 |
+| ✅ 地形雕刻 | 5 种形状：flat/smooth/mountain/valley/random（Perlin 噪声） |
+| ✅ 地形贴图 | 4 种地表纹理：grass/sand/rock/snow |
+| ✅ 环境配置 | 雾效开关/颜色/密度/模式 + 环境光颜色/强度 |
+| ✅ 批量布局 | 4 种模式：grid/circle/random/line，支持物体或 Prefab |
+
+### 🔒 安全容器系统（新增）
+
+| 能力 | 描述 |
+|------|------|
+| ✅ 创建测试套件 | `AI_TestSuite` 根容器，所有 AI 生成内容置于其下 |
+| ✅ 父级挂载 | 所有创建工具支持 `parent` 参数，将物体挂载到指定父物体下 |
+| ✅ 安全重置 | `reset_scene()` 自动检测容器：有则只删容器，无则保留 Camera/Light |
 
 ### ✨ 粒子 & VFX 特效
 
@@ -367,7 +386,12 @@ Dashboard 内嵌了完整的文本命令解析引擎，无需记忆 API 端点�
 
 | 类别 | 命令 | 示例 |
 |------|------|------|
-| 🎬 **基础物体** | `create empty / light / cube / sphere / ...` | `create sphere named MySphere at 0 1 0 radius 0.5` |
+| 🎬 **基础物体** | `create empty / light / cube / sphere / cylinder / plane / ...` | `create sphere named MySphere at 0 1 0 radius 0.5` |
+| 📷 **摄像机** | `create camera named <name>` | `create camera named MainCam at 0 1 -10` |
+| 🏔️ **地形** | `create terrain / sculpt terrain / paint terrain` | `sculpt terrain MyTerrain shape mountain strength 0.7` |
+| 🌤️ **环境** | `environment [fog] [ambient]` | `environment fog true fogColor #666688` |
+| 📐 **布局** | `layout <name> pattern <pattern>` | `layout MyCube pattern grid count 16` |
+| 🧹 **测试容器** | `reset` | `reset` (安全清理: 保留 Camera + Light) |
 | ✨ **粒子特效** | `create particle / fire / portal / lightning / ...` | `create fire named Blast radius 2.5 duration 1.5` |
 | 🎨 **材质** | `create material` / `assign material` | `create material named MyMat color #FF5733` |
 | 🎯 **物体操作** | `focus / play / stop / info / list / clear / move` | `move MyObject to 3 1 0` |
@@ -452,14 +476,69 @@ Unity Editor 内置了一个 EditorWindow 仪表盘，无需外部 Web 服务即
 
 ---
 
-## 10. MCP 工具参考
+## 10. Shell 命令操控 Unity
 
-总计 **40 个 MCP 工具**，按模块分组：
+AI Agent 可以不通过 MCP 协议，直接用 **PowerShell Shell 命令** 调用 Unity HTTP API。这对于快速测试、批量操作或在非 MCP 客户端环境下使用非常方便。
+
+### 调用方式
+
+所有 Unity 功能都通过 HTTP POST/GET 暴露在 `http://localhost:8765/`，使用 `Invoke-RestMethod` 即可调用：
+
+```powershell
+# 连接测试
+Invoke-RestMethod -Uri "http://localhost:8765/ping" -Method Get
+
+# 创建物体（带 parent 挂载）
+Invoke-RestMethod -Uri "http://localhost:8765/create-primitive" -Method Post `
+    -Body (@{primitiveType="Cube";name="MyCube";color="#FF4400";x=0;y=0.5;z=0;size=1;parent="AI_TestSuite"} | ConvertTo-Json) `
+    -ContentType "application/json"
+
+# 创建摄像机
+Invoke-RestMethod -Uri "http://localhost:8765/create-camera" -Method Post `
+    -Body (@{name="Main Camera";x=0;y=1;z=-10} | ConvertTo-Json) `
+    -ContentType "application/json"
+
+# 创建地形 + 雕刻
+Invoke-RestMethod -Uri "http://localhost:8765/create-terrain" -Method Post `
+    -Body (@{name="MyTerrain";width=300;length=300;height=50;resolution=257} | ConvertTo-Json) `
+    -ContentType "application/json"
+Invoke-RestMethod -Uri "http://localhost:8765/sculpt-terrain" -Method Post `
+    -Body (@{objectName="MyTerrain";shape="mountain";strength=0.8} | ConvertTo-Json) `
+    -ContentType "application/json"
+
+# 设置环境
+Invoke-RestMethod -Uri "http://localhost:8765/set-environment" -Method Post `
+    -Body (@{fogEnabled=$true;fogColor="#808090";fogMode="exponential";fogDensity=0.006;ambientColor="#FFEECC"} | ConvertTo-Json) `
+    -ContentType "application/json"
+
+# 批量布局
+Invoke-RestMethod -Uri "http://localhost:8765/layout-objects" -Method Post `
+    -Body (@{objectName="MyCube";pattern="circle";count=8;radius=4} | ConvertTo-Json) `
+    -ContentType "application/json"
+
+# 安全重置（只清容器，保留 Camera 和 Light）
+Invoke-RestMethod -Uri "http://localhost:8765/reset-scene" -Method Post `
+    -Body (@{} | ConvertTo-Json) -ContentType "application/json"
+```
+
+### Shell 调用 vs MCP 调用对比
+
+| 方式 | 优势 | 适用场景 |
+|------|------|----------|
+| MCP 协议 | AI 客户端自动发现工具、参数校验、自动补全 | Claude Desktop、VS Code Cline/Continue |
+| Shell 命令 | 无依赖、可批量脚本化、调试方便 | 快速测试、CI/CD、批量自动化 |
+
+---
+
+## 11. MCP 工具参考
+
+总计 **48 个 MCP 工具**，按模块分组：
 
 | 模块 | 数量 | 🛠️ 工具列表 |
 |------|:----:|-------------|
 | 🔗 **connection** | 1 | `ping_unity` |
-| 🎬 **scene** | 3 | `create_empty`, `list_scene_objects`, `set_transform` |
+| 🎬 **scene** | 7 | `create_empty`, `list_scene_objects`, `set_transform`, `init_test_suite`, `create_primitive`, `create_sample_scene`, `reset_scene` |
+| 📷 **camera** | 1 | `create_camera` |
 | ✨ **vfx** | 8 | `create_particle_effect`, `create_light`, `create_magic_portal`, `create_fire_explosion`, `create_lightning_hit`, `create_heal_aura`, `create_smoke_burst`, `create_slash_trail` |
 | 🏗️ **prefab** | 1 | `save_prefab` |
 | 🎨 **material** | 5 | `create_material`, `assign_material`, `create_additive_particle_material`, `set_material_color`, `set_material_emission` |
@@ -470,12 +549,15 @@ Unity Editor 内置了一个 EditorWindow 仪表盘，无需外部 Web 服务即
 | 🧬 **variant** | 2 | `create_effect_variants`, `capture_effect_variants` |
 | 🔬 **shader** | 4 | `list_material_properties`, `set_material_property`, `set_vfx_graph_property`, `create_vfx_graph_from_template` |
 | 📊 **report** | 1 | `export_effect_report` |
+| 🏔️ **terrain** | 3 | `create_terrain`, `sculpt_terrain`, `paint_terrain` |
+| 🌤️ **environment** | 1 | `set_environment` |
+| 📐 **layout** | 1 | `layout_objects` |
 
 ---
 
-## 11. HTTP API 参考
+## 12. HTTP API 参考
 
-总计 **36 个 POST + 2 个 GET = 38 个 HTTP Endpoints**，监听于 `http://localhost:8765/`。
+总计 **46 个 POST + 2 个 GET = 48 个 HTTP Endpoints**，监听于 `http://localhost:8765/`。
 
 ### GET 端点
 
@@ -564,138 +646,119 @@ Unity Editor 内置了一个 EditorWindow 仪表盘，无需外部 Web 服务即
 
 </details>
 
+<details>
+<summary><b>📁 阶段六：场景扩展（EXTEND_SCENE）</b>（点击展开）</summary>
+
+| 路径 | 请求模型 |
+|------|----------|
+| `/create-primitive` | `{primitiveType, name, color, x, y, z, sx, sy, sz, radius, size, parent}` |
+| `/create-camera` | `{name, x, y, z, rx, ry, rz, parent}` |
+| `/create-sample-scene` | `{name, color, groundSize, includeWalls, includeLights, style, parent}` |
+| `/create-test-suite` | `{name}` |
+| `/reset-scene` | `{keepLights, keepTerrain, createDefault}` |
+| `/create-terrain` | `{name, width, length, height, density, x, y, z, parent}` |
+| `/sculpt-terrain` | `{objectName, shape, strength}` |
+| `/paint-terrain` | `{objectName, layerType}` |
+| `/set-environment` | `{fogEnabled, fogColor, fogMode, fogDensity, ambientColor, ambientIntensity}` |
+| `/layout-objects` | `{objectName, prefabPath, pattern, count, spacing, radius}` |
+
+</details>
+
 ---
 
-## 12. Agent 工作流指南
+## 13. Agent 工作流指南
 
-当 AI Agent 需要通过 Unity MCP Server 创建特效时，应按以下标准化流程操作。
+当 AI Agent 需要通过 Unity MCP Server 创建场景或特效时，应按以下标准化流程操作。
 
-### 标准流程
+### 标准流程（容器化模式）
 
 ```
-🔌 连接测试 → ✨ 创建特效 → ▶️ 播放聚焦 → 🎨 (调优/变体) → 📸 (截图/报告) → 🗑️ 清理
+🔌 连接测试
+    → 📦 init_test_suite() 创建测试容器
+        → ✨ 创建场景/地形/特效/物体 (parent="AI_TestSuite")
+            → ▶️ 播放/聚焦/截图
+                → 🗑️ reset_scene() 一键安全清理
 ```
 
-### 第一步：测试连接
+### 第一步：创建测试容器
+
+所有 AI 生成的内容都应放入 `AI_TestSuite` 容器中，便于管理和安全清理：
 
 ```python
-# 任何操作前必须先调用
-ping_unity()
-# 预期: {"success": true, "message": "pong"}
+init_test_suite(name="AI_TestSuite")
 ```
 
-> **连接失败？** → 提示用户确认 Unity Editor 已启动，点击 **Unity MCP > Start Server**，检查端口 8765 是否被占用。
+### 第二步：创建内容（使用 parent 参数）
 
-### 第二步：创建特效
-
-**基础粒子效果：**
+**场景搭建：**
+```python
+create_terrain(name="MyTerrain", width=300, length=300, height=50, parent="AI_TestSuite")
+sculpt_terrain(object_name="MyTerrain", shape="mountain", strength=0.7)
+paint_terrain(object_name="MyTerrain", layer_type="grass")
+create_primitive(primitive_type="Cube", name="House", color="#BB3333",
+                 x=0, y=1.5, z=0, size=3, parent="AI_TestSuite")
+create_camera(name="SceneCamera", x=0, y=1, z=-10, parent="AI_TestSuite")
+set_environment(fog_enabled=True, fog_color="#C0C8D0", fog_mode="exponential")
 ```
-create_particle_effect(effect_name="MyEffect", color="#FF4400", duration=2.0,
-                       emission_rate=80, start_lifetime=1.5, start_speed=2.0,
-                       start_size=0.2, radius=1.0, loop=true)
+
+**特效创建：**
+```python
+create_magic_portal(effect_name="Portal", main_color="#33AAFF", radius=2, parent="AI_TestSuite")
+create_fire_explosion(effect_name="Blast", radius=2.5, intensity=1.2, parent="AI_TestSuite")
 ```
 
-**高级 VFX 特效：**
-
-| 特效 | MCP 工具 | 关键参数 |
-|------|----------|----------|
-| 🔥 火焰爆炸 | `create_fire_explosion` | `effect_name, radius, intensity, duration` |
-| 🌀 魔法传送门 | `create_magic_portal` | `effect_name, main_color, radius, loop` |
-| ⚡ 闪电打击 | `create_lightning_hit` | `effect_name, main_color, height, branch_count` |
-| 💚 治疗光环 | `create_heal_aura` | `effect_name, main_color, radius, loop` |
-| 💨 烟雾爆发 | `create_smoke_burst` | `effect_name, color, radius, density` |
-| ⚔️ 斩击拖尾 | `create_slash_trail` | `effect_name, main_color, length, width` |
-
-**基础物体和灯光：**
-```
-create_empty(name="MyObject")        # 创建空物体
-create_light(name="MyLight", ...)    # 创建点光源
-create_material(name="MyMat", ...)   # 创建材质
+**批量布局：**
+```python
+layout_objects(object_name="House", pattern="grid", count=16, spacing=3, parent="AI_TestSuite")
 ```
 
 ### 第三步：播放和聚焦
 
 ```python
 play_effect(object_name="MyEffect", include_children=true)
-# → 播放特效及其所有子物体的粒子系统
-
 focus_scene_object(object_name="MyEffect")
-# → 在 SceneView 中聚焦并选中
+capture_view(file_name="Shot", view_type="scene", width=1920, height=1080)
 ```
-
-> 使用 Dashboard 时，点击特效按钮会自动按顺序执行：**创建 → 播放 → 聚焦**
 
 ### 第四步：调优（可选）
 
 ```python
-recolor_effect(object_name, color, ...)        # 整体重着色
-scale_effect(object_name, scale, ...)          # 整体缩放
-update_particle_system(object_name, ...)       # 调整粒子参数
-adjust_effect_timing(object_name, ...)         # 调整时长/速度
+recolor_effect(object_name, color="#FF3366", ...)  # 整体重着色
+scale_effect(object_name, scale_multiplier=1.5)     # 整体缩放
+update_particle_system(object_name, ...)             # 调整粒子参数
 ```
 
-### 第五步：截图/报告（可选）
+### 第五步：一键安全清理
 
 ```python
-capture_view(file_name="Shot", view_type="scene", width=1920, height=1080)
-export_effect_report(object_name="MyEffect", file_name="Report")
+reset_scene()
+# 自动检测 AI_TestSuite 容器 → 销毁容器及其所有子物体
+# 保留：Main Camera (Camera 组件) + Directional Light
 ```
 
-### 第六步：清理（可选）
-
-```python
-clear_ai_generated_scene_objects(prefix="MyEffect")
-```
-
-### 完整工作流示例
+### Shell 完整流程示例
 
 ```powershell
-# 1. 创建魔法传送门
-$body = @{ effectName = "MyPortal"; mainColor = "#33AAFF"; radius = 2.0;
-           duration = 5.0; loop = $true; saveAsPrefab = $true } | ConvertTo-Json
-Invoke-RestMethod -Uri "http://localhost:8765/create-magic-portal" -Method Post `
-    -Body $body -ContentType "application/json"
+# 1. 创建测试容器
+Invoke-RestMethod -Uri "http://localhost:8765/create-test-suite" -Method Post `
+    -Body (@{name="AI_TestSuite"} | ConvertTo-Json) -ContentType "application/json"
 
-# 2. 播放并聚焦
-Invoke-RestMethod -Uri "http://localhost:8765/play-effect" -Method Post `
-    -Body (@{ objectName = "MyPortal"; includeChildren = $true } | ConvertTo-Json) `
+# 2. 创建地形 + 房屋
+Invoke-RestMethod -Uri "http://localhost:8765/create-terrain" -Method Post `
+    -Body (@{name="Terrain";width=200;length=200;height=30;resolution=129;parent="AI_TestSuite"} | ConvertTo-Json) `
     -ContentType "application/json"
-Invoke-RestMethod -Uri "http://localhost:8765/focus-scene-object" -Method Post `
-    -Body (@{ objectName = "MyPortal" } | ConvertTo-Json) -ContentType "application/json"
-
-# 3. 截图
-Invoke-RestMethod -Uri "http://localhost:8765/capture-view" -Method Post `
-    -Body (@{ fileName = "MyPortal_Shot"; viewType = "scene"; width = 1920; height = 1080 } | ConvertTo-Json) `
+Invoke-RestMethod -Uri "http://localhost:8765/create-primitive" -Method Post `
+    -Body (@{primitiveType="Cube";name="House";color="#BB3333";x=0;y=1;z=0;size=3;parent="AI_TestSuite"} | ConvertTo-Json) `
     -ContentType "application/json"
 
-# 4. 调参（重着色 + 缩放）
-Invoke-RestMethod -Uri "http://localhost:8765/recolor-effect" -Method Post `
-    -Body (@{ objectName = "MyPortal"; color = "#FF44AA"; affectParticles = $true;
-              affectLights = $true; affectRenderers = $true; affectLines = $true } | ConvertTo-Json) `
-    -ContentType "application/json"
-Invoke-RestMethod -Uri "http://localhost:8765/scale-effect" -Method Post `
-    -Body (@{ objectName = "MyPortal"; scaleMultiplier = 1.5; scaleTransform = $true;
-              scaleParticleSize = $true; scaleParticleSpeed = $true; affectParticles = $true } | ConvertTo-Json) `
-    -ContentType "application/json"
-
-# 5. 批量变体 + 截图
-Invoke-RestMethod -Uri "http://localhost:8765/create-effect-variants" -Method Post `
-    -Body (@{ sourceObjectName = "MyPortal"; count = 4; spacing = 3.0; variantPrefix = "MyPortal" } | ConvertTo-Json) `
-    -ContentType "application/json"
-
-# 6. 导出报告
-Invoke-RestMethod -Uri "http://localhost:8765/export-effect-report" -Method Post `
-    -Body (@{ objectName = "MyPortal"; fileName = "MyPortal_Report" } | ConvertTo-Json) `
-    -ContentType "application/json"
-
-# 7. 清理
-Invoke-RestMethod -Uri "http://localhost:8765/clear-ai-generated-scene-objects" -Method Post `
-    -Body (@{ prefix = "MyPortal" } | ConvertTo-Json) -ContentType "application/json"
+# 3. 安全清理（只清容器，保留 Camera/Light）
+Invoke-RestMethod -Uri "http://localhost:8765/reset-scene" -Method Post `
+    -Body (@{} | ConvertTo-Json) -ContentType "application/json"
 ```
 
 ---
 
-## 13. 扩展开发
+## 14. 扩展开发
 
 ### Python 端
 
@@ -751,7 +814,7 @@ Test-Step -Number N -Description "描述" -ScriptBlock {
 
 ---
 
-## 14. 安全设计
+## 15. 安全设计
 
 | 措施 | 说明 |
 |------|------|
@@ -786,7 +849,7 @@ HttpListener (后台线程)
 
 ---
 
-## 15. 常见问题排查
+## 16. 常见问题排查
 
 ### 🔌 连接相关
 
@@ -818,10 +881,15 @@ HttpListener (后台线程)
 
 ---
 
-## 16. 路线图
+## 17. 路线图
 
-- [ ] 🏔️ **Terrains** —— 创建和编辑 Terrain
-- [ ] 🎬 **Animations** —— 控制 Animation/Animator 组件
+- [x] 🏔️ **Terrains** —— 创建/雕刻/贴图 Terrain ✅
+- [x] 🎬 **Primitives** —— 创建 3D 图元（Cube/Sphere/Cylinder 等） ✅
+- [x] 📷 **Cameras** —— 创建带 Camera 组件的物体 ✅
+- [x] 🌤️ **Environment** —— 雾效/环境光控制 ✅
+- [x] 📐 **Layout** —— 批量布局（grid/circle/random/line） ✅
+- [x] 🔒 **Test Suite** —— 安全容器系统 + 智能 reset_scene ✅
+- [x] 🐚 **Shell 命令** —— 完整的 PowerShell 调用示例 ✅
 - [ ] 🔊 **Audio** —— 创建和播放 AudioSource
 - [ ] 🖥️ **UI** —— 创建和操作 uGUI 元素
 - [ ] 🎥 **Cinemachine** —— 控制虚拟相机
@@ -835,22 +903,7 @@ HttpListener (后台线程)
 
 ## 测试脚本说明
 
-项目包含 4 个按阶段组织的 PowerShell 测试脚本：
-
-| 脚本 | 测试内容 | 步骤数 |
-|------|----------|:------:|
-| `test-stage2.ps1` | 材质系统 | 10 |
-| `test-stage3.ps1` | 高级 VFX | 8 |
-| `test-stage4.ps1` | 预览与工作流 | 11 |
-| `test-stage5.ps1` | 调优/变体/Shader/报告 | 16 |
-
-统一执行模式：
-```powershell
-cd D:\zm\YTT_TOOLs\mcp-server
-.\test-stage3.ps1  # 例如测试高级 VFX
-```
-
-所有测试脚本使用相同的函数模式（`Test-Step`），基于 `Invoke-RestMethod`（不要用 `curl.exe`）。
+> 测试脚本已迁移为按功能模块组织的独立脚本。之前按阶段的 test-stage*.ps1 已删除，改用 `_test_*.ps1` 或 `_test_*.py` 单功能验证脚本。
 
 ---
 

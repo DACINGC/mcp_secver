@@ -51,7 +51,19 @@ namespace UnityMCP
                 { "/set-material-property", (req) => UnityMcpShaderTools.SetMaterialProperty(req) },
                 { "/set-vfx-graph-property", (req) => UnityMcpShaderTools.SetVfxGraphProperty(req) },
                 { "/create-vfx-graph-from-template", (req) => UnityMcpShaderTools.CreateVfxGraphFromTemplate(req) },
-                { "/export-effect-report", (req) => UnityMcpReportTools.ExportEffectReport(req) }
+                { "/export-effect-report", (req) => UnityMcpReportTools.ExportEffectReport(req) },
+
+                // --- EXTEND_SCENE 新增路由 ---
+                { "/create-primitive", (req) => UnityMcpSceneTools.CreatePrimitive(req) },
+                { "/create-sample-scene", (req) => UnityMcpSceneTools.CreateSampleScene(req) },
+                { "/reset-scene", (req) => UnityMcpSceneTools.ResetScene(req) },
+                { "/create-terrain", (req) => UnityMcpTerrainTools.CreateTerrain(req) },
+                { "/sculpt-terrain", (req) => UnityMcpTerrainTools.SculptTerrain(req) },
+                { "/paint-terrain", (req) => UnityMcpTerrainTools.PaintTerrain(req) },
+                { "/set-environment", (req) => UnityMcpEnvironmentTools.SetEnvironment(req) },
+                { "/layout-objects", (req) => UnityMcpLayoutTools.LayoutObjects(req) },
+                { "/create-camera", (req) => UnityMcpSceneTools.CreateCamera(req) },
+                { "/create-test-suite", (req) => UnityMcpSceneTools.CreateTestSuite(req) },
             };
 
             _getRoutes = new Dictionary<string, Func<string>>
