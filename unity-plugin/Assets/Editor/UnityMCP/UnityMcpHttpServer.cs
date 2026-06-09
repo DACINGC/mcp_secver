@@ -17,6 +17,11 @@ namespace UnityMCP
         private static bool _isRunning;
         private static readonly int Port = 8765;
 
+        /// <summary>
+        /// 服务器是否正在运行（供外部 UI 读取）
+        /// </summary>
+        public static bool IsRunning => _isRunning && _listener != null && _listener.IsListening;
+
         static UnityMcpHttpServer()
         {
             EditorApplication.delayCall += () =>

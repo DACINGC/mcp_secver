@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity MCP Server Dashboard</title>
+<style>
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-card: #1c2333;
+    --bg-hover: #252d3f;
+    --border: #30363d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --accent-blue: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-red: #f85149;
+    --accent-yellow: #d29922;
+    --accent-purple: #bc8cff;
+    --shadow: 0 2px 12px rgba(0,0,0,0.3);
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  .header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: bold; color: #fff;
+  }
+  .header-title { font-size: 18px; font-weight: 600; }
+  .header-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid var(--border);
+  }
+  .status-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+  }
+  .status-badge.running { color: var(--accent-green); border-color: var(--accent-green); }
+  .status-badge.running .dot { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+  .status-badge.stopped { color: var(--text-muted); }
+  .status-badge.stopped .dot { background: var(--text-muted); }
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+  .grid { display: grid; gap: 16px; }
+  .grid-3 { grid-template-columns: 2fr 1fr; }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+  .card-title {
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-body { padding: 16px; }
+  .card-body.compact { padding: 12px 16px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+  .stat-item { text-align: center; }
+  .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .stat-value.idle { color: var(--text-muted); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 6px;
+    font-size: 13px; font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .btn:hover { background: var(--bg-hover); border-color: #484f58; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: #238636; border-color: rgba(46, 160, 67, 0.4); color: #fff; }
+  .btn-primary:hover { background: #2ea043; }
+  .btn-danger { background: #8b1a1a; border-color: rgba(248, 81, 73, 0.4); color: #fff; }
+  .btn-danger:hover { background: #a51d1d; }
+  .btn-warning { background: #7a5d12; border-color: rgba(210, 153, 34, 0.4); color: #fff; }
+  .btn-warning:hover { background: #9e7418; }
+  .btn-outline { background: transparent; border-color: var(--border); }
+  .btn-outline:hover { background: var(--bg-hover); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--border); border-top-color: var(--accent-blue);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .log-container {
+    background: #0a0d14;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: "Consolas", "JetBrains Mono", monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    height: 420px;
+    overflow-y: auto;
+    padding: 10px 12px;
+  }
+  .log-container .log-line {
+    padding: 1px 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: flex;
+    gap: 8px;
+  }
+  .log-ts { color: var(--text-muted); flex-shrink: 0; }
+  .log-stream { flex-shrink: 0; font-size: 10px; padding: 0 4px; border-radius: 3px; font-weight: 600; }
+  .log-stream.SYSTEM { color: var(--accent-purple); }
+  .log-stream.STDERR { color: var(--accent-red); }
+  .log-stream.STDOUT { color: var(--accent-green); }
+  .log-empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-muted); font-size: 13px;
+  }
+  .log-count { font-size: 12px; color: var(--text-muted); }
+  .toast {
+    position: fixed; top: 20px; right: 20px;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    z-index: 9999;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(0); }
+  .toast.success { background: #1a3d2b; border: 1px solid var(--accent-green); color: #7ee787; }
+  .toast.error { background: #3d1a1a; border: 1px solid var(--accent-red); color: #f87171; }
+  .toast.info { background: #1a2a3d; border: 1px solid var(--accent-blue); color: #79b8ff; }
+  .config-table { width: 100%; font-size: 13px; }
+  .config-table td { padding: 6px 0; }
+  .config-table .key { color: var(--text-secondary); width: 140px; font-weight: 500; }
+  .config-table .value { color: var(--text-primary); font-family: "Consolas", monospace; font-size: 12px; word-break: break-all; }
+  .ping-result { margin-top: 8px; padding: 8px 12px; border-radius: 6px; font-size: 13px; min-height: 36px; }
+  .ping-result.success { background: rgba(63, 185, 80, 0.1); border: 1px solid rgba(63, 185, 80, 0.2); color: var(--accent-green); }
+  .ping-result.error { background: rgba(248, 81, 73, 0.1); border: 1px solid rgba(248, 81, 73, 0.2); color: var(--accent-red); }
+  .ping-result.pending { background: rgba(210, 153, 34, 0.1); border: 1px solid rgba(210, 153, 34, 0.2); color: var(--accent-yellow); }
+  .ping-result pre { margin-top: 4px; font-size: 11px; font-family: "Consolas", monospace; white-space: pre-wrap; }
+  .auto-scroll-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; user-select: none; }
+  .auto-scroll-label input[type="checkbox"] { accent-color: var(--accent-blue); }
+  @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
+  .clear-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 4px; }
+  .clear-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  .cmd-input-wrapper { display: flex; gap: 6px; }
+  .cmd-input {
+    flex: 1; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; color: var(--text-primary); font-family: "Consolas", monospace;
+    font-size: 13px; outline: none; transition: border-color 0.15s;
+  }
+  .cmd-input:focus { border-color: var(--accent-blue); }
+  .cmd-input::placeholder { color: var(--text-muted); font-family: -apple-system, sans-serif; }
+  .cmd-history { margin-top: 8px; max-height: 160px; overflow-y: auto; font-family: "Consolas", monospace; font-size: 12px; }
+  .cmd-entry { padding: 4px 8px; border-radius: 4px; margin-bottom: 2px; display: flex; gap: 8px; align-items: flex-start; }
+  .cmd-entry:hover { background: var(--bg-hover); }
+  .cmd-entry .cmd-icon { flex-shrink: 0; font-size: 12px; margin-top: 2px; }
+  .cmd-entry .cmd-text { flex: 1; }
+  .cmd-entry .cmd-time { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+  .cmd-entry.success { border-left: 2px solid var(--accent-green); }
+  .cmd-entry.error { border-left: 2px solid var(--accent-red); }
+  .cmd-entry.pending { border-left: 2px solid var(--accent-yellow); }
+
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; max-width: 800px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.5); animation: modalIn 0.2s ease; }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); position: sticky; top: 0; z-index: 1; }
+  .modal-header h2 { font-size: 16px; font-weight: 600; }
+  .modal-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+  .modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .modal-body { padding: 20px; }
+  .modal-section { margin-bottom: 20px; }
+  .modal-section h3 { font-size: 14px; font-weight: 600; color: var(--accent-blue); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .cmd-help-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+  .cmd-help-table th, .cmd-help-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .cmd-help-table th { color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cmd-help-table .cmd-syntax { font-family: "Consolas", monospace; color: var(--accent-green); white-space: pre-wrap; word-break: break-all; }
+  .cmd-help-table .cmd-example { font-family: "Consolas", monospace; color: var(--text-secondary); font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+  .cmd-help-table .cmd-desc { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">M</div>
+    <div>
+      <div class="header-title">Unity MCP Server</div>
+      <div class="header-subtitle">Dashboard</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span id="statusBadge" class="status-badge stopped"><span class="dot"></span><span id="statusText">检查中...</span></span>
+    <button class="btn btn-primary" id="btnStart" onclick="startServer()"><span>▶</span><span class="label">启动</span></button>
+    <button class="btn btn-danger" id="btnStop" onclick="stopServer()" disabled><span>■</span><span class="label">停止</span></button>
+    <button class="btn btn-warning" id="btnRestart" onclick="restartServer()" disabled><span>⟳</span><span class="label">重启</span></button>
+  </div>
+</div>
+<div class="container">
+  <div class="grid grid-3">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card">
+        <div class="card-header"><div class="card-title">📊 服务器状态</div></div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-item"><div class="stat-label">状态</div><div class="stat-value" id="statStatus">—</div></div>
+            <div class="stat-item"><div class="stat-label">进程 PID</div><div class="stat-value" id="statPid">—</div></div>
+            <div class="stat-item"><div class="stat-label">运行时间</div><div class="stat-value" id="statUptime">—</div></div>
+            <div class="stat-item"><div class="stat-label">日志条数</div><div class="stat-value" id="statLogs">0</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 服务器日志<span class="log-count" id="logCount"></span></div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label class="auto-scroll-label"><input type="checkbox" id="autoScroll" checked>自动滚动</label>
+            <button class="clear-btn" onclick="clearLogs()">清除</button>
+          </div>
+        </div>
+        <div class="card-body compact">
+          <div class="log-container" id="logContainer"><div class="log-empty"><span>日志将在此处显示...</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⌨️ 命令控制台</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-outline" onclick="showHelpModal()" title="查看可用命令">📖 帮助</button>
+            <button class="btn btn-sm btn-outline" onclick="clearCmdHistory()" title="清除历史">🗑 清除</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="cmd-input-wrapper">
+            <input type="text" id="cmdInput" class="cmd-input"
+                   placeholder="输入命令 (如: create sphere named MySphere at 0 1 0) 然后按 Enter..."
+                   autocomplete="off" spellcheck="false">
+            <button class="btn btn-primary" onclick="sendCommand()" title="执行命令">↵</button>
+          </div>
+          <div class="cmd-history" id="cmdHistory">
+            <div style="color:var(--text-muted);font-size:12px;padding:4px 8px;font-family:-apple-system,sans-serif;">
+              在此输入命令，或点击 📖 帮助 查看可用命令列表
+            </div>
+          </div>
+          <div id="cmdResult" class="ping-result" style="display:none;margin-top:8px;"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🎨 Unity 创建工具</div>
+          <span id="unityStatus" class="status-badge stopped" style="font-size:11px;padding:2px 8px;"><span class="dot"></span><span>未连接</span></span>
+        </div>
+        <div class="card-body">
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">目标物体：<span id="labelTargetObject">—</span></div>
+          <div style="margin-bottom:12px;">
+            <div style="font-size:12px;color:var(--accent-blue);font-weight:600;margin-bottom:8px;">📦 基础物体</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <button class="btn btn-sm btn-outline" onclick="createObject('empty')">空物体</button>
+              <button class="btn btn-sm btn-outline" onclick="createObject('light')">点光源</button>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div style="font-size:12px;color:var(--accent-green);font-weight:600;margin-bottom:8px;">✨ 特效</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <button class="btn btn-sm btn-primary" onclick="createVfx('fire')">🔥 火焰爆炸</button>
+              <button class="btn btn-sm btn-primary" onclick="createVfx('portal')">🌀 魔法传送门</button>
+              <button class="btn btn-sm btn-primary" onclick="createVfx('lightning')">⚡ 闪电打击</button>
+              <button class="btn btn-sm btn-primary" onclick="createVfx('heal')">💚 治疗光环</button>
+              <button class="btn btn-sm btn-primary" onclick="createVfx('smoke')">💨 烟雾爆发</button>
+              <button class="btn btn-sm btn-primary" onclick="createVfx('slash')">⚔️ 斩击拖尾</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--accent-yellow);font-weight:600;margin-bottom:8px;">▶️ 播放控制</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <button class="btn btn-sm btn-outline" onclick="playEffect()">▶ 播放</button>
+              <button class="btn btn-sm btn-outline" onclick="stopEffect()">⏹ 停止</button>
+              <button class="btn btn-sm btn-outline" onclick="focusObject()">🎯 聚焦</button>
+              <button class="btn btn-sm btn-outline" onclick="listObjects()">📋 列举场景</button>
+              <button class="btn btn-sm btn-outline" onclick="clearScene()">🗑 清理</button>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:6px;">
+            <input type="text" id="targetObject" placeholder="物体名称" value="MyEffect"
+                   style="flex:1;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text-primary);font-size:12px;">
+            <input type="text" id="objectColor" placeholder="#RRGGBB" value="#FF4400"
+                   style="width:85px;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text-primary);font-size:12px;font-family:monospace;">
+          </div>
+          <div id="vfxResult" class="ping-result" style="display:none;margin-top:10px;"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🔗 Unity 连接测试</div></div>
+        <div class="card-body">
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline" id="btnPing" onclick="pingUnity()"><span>📡</span> Ping Unity</button>
+            <span style="flex:1;font-size:12px;color:var(--text-muted);align-self:center;" id="pingUrl">请求 localhost:8765/ping</span>
+          </div>
+          <div id="pingResult" class="ping-result" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">⚡ 快捷操作</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn btn-outline" onclick="copyLogs()">📋 复制日志到剪贴板</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">⚙️ 配置信息</div></div>
+        <div class="card-body">
+          <table class="config-table" id="configTable">
+            <tr><td class="key">Unity URL</td><td class="value" id="cfgUrl">加载中...</td></tr>
+            <tr><td class="key">HTTP 超时</td><td class="value" id="cfgTimeout">—</td></tr>
+            <tr><td class="key">Server 脚本</td><td class="value" id="cfgScript">—</td></tr>
+            <tr><td class="key">Dashboard 端口</td><td class="value" id="cfgPort">5100</td></tr>
+            <tr><td class="key">Python 版本</td><td class="value" id="cfgPython">—</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<div class="modal-overlay" id="helpModal">
+  <div class="modal">
+    <div class="modal-header"><h2>📖 可用命令参考</h2><button class="modal-close" onclick="closeHelpModal()">✕</button></div>
+    <div class="modal-body" id="helpModalBody"><div style="text-align:center;padding:20px;color:var(--text-muted);"><span class="spinner"></span> 加载中...</div></div>
+  </div>
+</div>
+<script>
+var LOG_POLL_INTERVAL = 500, STATUS_POLL_INTERVAL = 2000;
+var lastLogAfter = 0, statusPoller = null, logPoller = null;
+
+function showToast(msg, type) { type = type || "info";
+  var t = document.getElementById("toast"); t.textContent = msg;
+  t.className = "toast " + type; t.classList.add("show");
+  setTimeout(function(){ t.classList.remove("show"); }, 3000);
+}
+
+function updateButtons(status) {
+  var r = status === "running";
+  document.getElementById("btnStart").disabled = r;
+  document.getElementById("btnStop").disabled = !r;
+  document.getElementById("btnRestart").disabled = !r;
+  var badge = document.getElementById("statusBadge");
+  var text = document.getElementById("statusText");
+  badge.className = "status-badge " + (r ? "running" : "stopped");
+  text.textContent = r ? "运行中" : "已停止";
+  document.getElementById("statStatus").textContent = r ? "运行中" : "已停止";
+  document.getElementById("statStatus").style.color = r ? "var(--accent-green)" : "var(--text-muted)";
+}
+
+function updateUnityStatus(connected) {
+  var badge = document.getElementById("unityStatus");
+  var text = badge.querySelector("span:last-child");
+  if (connected) { badge.className = "status-badge running"; text.textContent = "已连接"; }
+  else { badge.className = "status-badge stopped"; text.textContent = "未连接"; }
+}
+
+function getName() {
+  var n = document.getElementById("targetObject").value.trim() || "MyEffect";
+  document.getElementById("labelTargetObject").textContent = n; return n;
+}
+function getColor() { return document.getElementById("objectColor").value.trim() || "#FF4400"; }
+
+function showResult(container, data, action) {
+  container.style.display = "block";
+  if (data && data.success) {
+    container.className = "ping-result success";
+    container.innerHTML = "<strong>✅ " + action + " 成功</strong><pre>" + JSON.stringify(data.data || data.message, null, 2) + "</pre>";
+  } else {
+    container.className = "ping-result error";
+    container.innerHTML = "<strong>❌ " + action + " 失败</strong><br><span style='font-size:12px;'>" + (data && (data.error || data.message) || "未知错误") + "</span>";
+  }
+}
+
+function apiFetch(url, options) {
+  return fetch(url, Object.assign({ headers: { "Accept": "application/json" } }, options || {}))
+    .then(function(r){ return r.json(); }).catch(function(){ return null; });
+}
+
+function unityCall(endpoint, payload) {
+  return apiFetch("/api/unity-call", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({endpoint:endpoint,payload:payload}) });
+}
+
+function unityGet(endpoint) {
+  return apiFetch("/api/unity-get", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({endpoint:endpoint}) });
+}
+
+function updateStatus() {
+  apiFetch("/api/status").then(function(data){
+    if (!data) { updateButtons("stopped"); return; }
+    var s = data.status === "running" ? "running" : "stopped";
+    updateButtons(s);
+    document.getElementById("statPid").textContent = data.pid || "—";
+    document.getElementById("statUptime").textContent = data.uptime || "—";
+    document.getElementById("statLogs").textContent = data.log_count || 0;
+  });
+}
+
+function createObject(type) {
+  var name = getName(), color = getColor(), div = document.getElementById("vfxResult");
+  if (type === "empty") {
+    unityCall("/create-empty", {name:name,x:0,y:0,z:0}).then(function(d){ showResult(div,d,"创建空物体 "+name); });
+  } else if (type === "light") {
+    unityCall("/create-light", {name:name,color:color,intensity:3,range_value:5,x:0,y:2,z:0}).then(function(d){ showResult(div,d,"创建点光源 "+name); });
+  }
+}
+
+function createVfx(type) {
+  var name = getName(), color = getColor(), div = document.getElementById("vfxResult");
+  var ep = "", payload = {};
+  if (type === "fire") { ep="/create-fire-explosion"; payload={effectName:name,radius:2.5,intensity:1.2,duration:1.5,saveAsPrefab:false}; }
+  else if (type==="portal") { ep="/create-magic-portal"; payload={effectName:name,mainColor:color,radius:2,duration:5,loop:true,saveAsPrefab:false}; }
+  else if (type==="lightning") { ep="/create-lightning-hit"; payload={effectName:name,mainColor:color,height:4,radius:1,duration:0.8,branchCount:5,saveAsPrefab:false}; }
+  else if (type==="heal") { ep="/create-heal-aura"; payload={effectName:name,mainColor:color,radius:2,duration:4,loop:true,saveAsPrefab:false}; }
+  else if (type==="smoke") { ep="/create-smoke-burst"; payload={effectName:name,color:"#888888",radius:2,duration:2.5,density:1,saveAsPrefab:false}; }
+  else if (type==="slash") { ep="/create-slash-trail"; payload={effectName:name,mainColor:color,length:3,width:0.3,duration:0.5,saveAsPrefab:false}; }
+  unityCall(ep, payload).then(function(data){
+    showResult(div, data, "创建特效 "+name);
+    if (data && data.success) {
+      setTimeout(function(){
+        unityCall("/play-effect", {objectName:name,includeChildren:true});
+        unityCall("/focus-scene-object", {objectName:name});
+      }, 300);
+    }
+  });
+}
+
+function playEffect() { var n=getName(),d=document.getElementById("vfxResult"); unityCall("/play-effect",{objectName:n,includeChildren:true}).then(function(r){showResult(d,r,"播放特效");}); }
+function stopEffect() { var n=getName(),d=document.getElementById("vfxResult"); unityCall("/stop-effect",{objectName:n,includeChildren:true,clearParticles:true}).then(function(r){showResult(d,r,"停止特效");}); }
+function focusObject() { var n=getName(),d=document.getElementById("vfxResult"); unityCall("/focus-scene-object",{objectName:n}).then(function(r){showResult(d,r,"聚焦物体");}); }
+
+function listObjects() {
+  var d=document.getElementById("vfxResult");
+  unityGet("/list-scene-objects").then(function(data){
+    d.style.display="block";
+    if(data&&data.success){ d.className="ping-result success";
+      var objs=data.data&&(data.data.data||data.data.objects)||[];
+      if(Array.isArray(objs)&&objs.length) d.innerHTML="<strong>📋 场景物体 ("+objs.length+")</strong><pre>"+objs.join("\n")+"</pre>";
+      else d.innerHTML="<strong>📋 场景物体</strong><br><span style='font-size:12px;'>"+JSON.stringify(data.data||data.message)+"</span>";
+    } else { d.className="ping-result error"; d.innerHTML="<strong>❌ 获取失败</strong><br><span style='font-size:12px;'>"+(data&&data.error||"未知错误")+"</span>"; }
+  });
+}
+
+function clearScene() { var n=getName(),d=document.getElementById("vfxResult"); unityCall("/clear-ai-generated-scene-objects",{prefix:n.substring(0,3)}).then(function(r){showResult(d,r,'清理 "'+n.substring(0,3)+'" 前缀的物体');}); }
+
+function pingUnity() {
+  var btn=document.getElementById("btnPing"),r=document.getElementById("pingResult");
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 请求中...';
+  r.style.display="block"; r.className="ping-result pending"; r.innerHTML="正在连接 Unity HTTP 服务 (localhost:8765)...";
+  apiFetch("/api/ping",{method:"POST"}).then(function(data){
+    btn.disabled=false; btn.innerHTML="<span>📡</span> Ping Unity";
+    if(data&&data.success){ r.className="ping-result success"; r.innerHTML="<strong>✅ Unity 已连接</strong><pre>"+JSON.stringify(data.data,null,2)+"</pre>"; updateUnityStatus(true); }
+    else { r.className="ping-result error"; r.innerHTML="<strong>❌ 连接失败</strong><br><span style='font-size:12px;'>"+(data&&data.error||"无法连接")+"</span>"; updateUnityStatus(false); }
+  });
+}
+
+function copyLogs() {
+  var c=document.getElementById("logContainer"),lines=c.querySelectorAll(".log-line"),text="";
+  lines.forEach(function(l){ text+="["+(l.querySelector(".log-ts")&&l.querySelector(".log-ts").textContent||"")+"] ["+(l.querySelector(".log-stream")&&l.querySelector(".log-stream").textContent||"")+"] "+(l.querySelector(".log-msg")&&l.querySelector(".log-msg").textContent||"")+"\n"; });
+  try{ navigator.clipboard.writeText(text); showToast("日志已复制到剪贴板","success"); }catch(e){ showToast("复制失败","error"); }
+}
+
+var cmdHistory = [];
+
+function addCmdEntry(icon, text, status, detail) {
+  var c=document.getElementById("cmdHistory");
+  var empty=c.querySelector("div:only-child");
+  if(empty&&c.children.length===1) empty.remove();
+  var e=document.createElement("div"); e.className="cmd-entry "+status;
+  var i=document.createElement("span"); i.className="cmd-icon"; i.textContent=icon; e.appendChild(i);
+  var t=document.createElement("span"); t.className="cmd-text"; t.textContent=text; e.appendChild(t);
+  var s=document.createElement("span"); s.className="cmd-time"; s.textContent=new Date().toLocaleTimeString(); e.appendChild(s);
+  if(detail) e.title=detail;
+  c.appendChild(e); c.scrollTop=c.scrollHeight;
+  cmdHistory.push({icon:text,status:status});
+  if(cmdHistory.length>50){ cmdHistory.shift(); if(c.children.length>50) c.removeChild(c.firstChild); }
+}
+
+function sendCommand() {
+  var input=document.getElementById("cmdInput"),resultDiv=document.getElementById("cmdResult"),text=input.value.trim();
+  if(!text) return;
+  input.disabled=true; resultDiv.style.display="none";
+  addCmdEntry("⏳",text,"pending","正在执行...");
+  fetch("/api/unity-command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({command:text})})
+    .then(function(r){ return r.json(); }).then(function(data){
+      var entries=document.getElementById("cmdHistory").querySelectorAll(".cmd-entry");
+      var last=entries[entries.length-1];
+      if(last&&last.querySelector(".cmd-icon").textContent==="⏳"){
+        if(data&&data.success){ last.className="cmd-entry success"; last.querySelector(".cmd-icon").textContent="✅"; }
+        else { last.className="cmd-entry error"; last.querySelector(".cmd-icon").textContent="❌"; }
+      }
+      if(data&&data.success){
+        resultDiv.className="ping-result success"; resultDiv.style.display="block";
+        resultDiv.innerHTML="<strong>✅ 执行成功</strong>"+(data.data?"<pre>"+JSON.stringify(data.data,null,2)+"</pre>":"");
+        var m=text.match(/named\s+(\S+)/i);
+        if(m){ setTimeout(function(){ fetch("/api/unity-call",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:"/focus-scene-object",payload:{objectName:m[1]}})}).catch(function(){}); },500); }
+      } else {
+        resultDiv.className="ping-result error"; resultDiv.style.display="block";
+        resultDiv.innerHTML="<strong>❌ 执行失败</strong><br><span style='font-size:12px;'>"+(data&&data.error||"未知错误")+"</span>";
+      }
+      input.disabled=false; input.value=""; input.focus();
+    }).catch(function(e){
+      resultDiv.className="ping-result error"; resultDiv.style.display="block";
+      resultDiv.innerHTML="<strong>❌ 请求失败</strong><br><span style='font-size:12px;'>"+e.message+"</span>";
+      input.disabled=false; input.value=""; input.focus();
+    });
+}
+
+function clearCmdHistory() {
+  document.getElementById("cmdHistory").innerHTML="<div style='color:var(--text-muted);font-size:12px;padding:4px 8px;font-family:-apple-system,sans-serif;'>历史已清除</div>";
+  cmdHistory=[];
+}
+
+function showHelpModal() {
+  var modal=document.getElementById("helpModal"),body=document.getElementById("helpModalBody");
+  modal.classList.add("active");
+  fetch("/api/available-commands").then(function(r){return r.json();}).then(function(c){renderHelpContent(body,c);}).catch(function(){renderHelpContent(body,getFallbackCommands());});
+}
+
+function renderHelpContent(container, categories) {
+  var html='<p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">在命令输入框中输入以下命令，按 Enter 执行。方括号 [] 表示可选参数。</p>';
+  for(var cat in categories){
+    var cmds=categories[cat].commands||categories[cat];
+    html+='<div class="modal-section"><h3>'+cat+'</h3><table class="cmd-help-table"><tr><th style="width:35%;">语法</th><th style="width:35%;">示例</th><th>说明</th></tr>';
+    for(var i=0;i<cmds.length;i++){
+      html+='<tr><td class="cmd-syntax">'+escapeHtml(cmds[i].syntax)+'</td><td class="cmd-example">'+escapeHtml(cmds[i].example)+'</td><td class="cmd-desc">'+escapeHtml(cmds[i].description)+'</td></tr>';
+    }
+    html+='</table></div>';
+  }
+  container.innerHTML=html;
+}
+
+function getFallbackCommands() {
+  return {
+    "基础物体": { commands: [
+      {syntax:"create empty named <name> [at x y z]",example:"create empty named MyEmpty at 0 0 0",description:"创建空物体"},
+      {syntax:"create light named <name> [color #RRGGBB] [intensity n]",example:"create light named MyLight color #FF4400 at 0 2 0",description:"创建点光源"},
+      {syntax:"create cube/sphere/cylinder/plane named <name> ...",example:"create cube named MyCube color #33AAFF at 0 1 0",description:"创建基础几何体"}
+    ]},
+    "粒子特效": { commands: [
+      {syntax:"create fire named <name> [radius n] [duration n]",example:"create fire named FireBlast radius 2.5 duration 1.5",description:"火焰爆炸"},
+      {syntax:"create portal named <name> [color #RRGGBB] [radius n]",example:"create portal named Portal color #33AAFF radius 2",description:"魔法传送门"},
+      {syntax:"create lightning named <name> [color #RRGGBB] [height n]",example:"create lightning named Bolt color #AA33FF height 4",description:"闪电打击"}
+    ]},
+    "物体操作": { commands: [
+      {syntax:"focus <name>",example:"focus MyEffect",description:"聚焦物体"},
+      {syntax:"play <name>",example:"play MyEffect",description:"播放特效"},
+      {syntax:"stop <name>",example:"stop MyEffect",description:"停止特效"},
+      {syntax:"list objects",example:"list objects",description:"列出场景物体"},
+      {syntax:"move <name> to x y z [rx ry rz]",example:"move MyObject to 3 1 0",description:"移动物体"}
+    ]}
+  };
+}
+
+function escapeHtml(str) { var d=document.createElement("div"); d.textContent=str; return d.innerHTML; }
+
+function closeHelpModal() { document.getElementById("helpModal").classList.remove("active"); }
+
+function startServer() { apiFetch("/api/start",{method:"POST"}).then(function(d){if(d){showToast(d.message,d.success?"success":"error");if(d.success)updateStatus();}}); }
+function stopServer() { apiFetch("/api/stop",{method:"POST"}).then(function(d){if(d){showToast(d.message,d.success?"success":"error");if(d.success)updateStatus();}}); }
+function restartServer() { apiFetch("/api/restart",{method:"POST"}).then(function(d){if(d){showToast(d.message,d.success?"success":"error");if(d.success)updateStatus();}}); }
+
+function fetchLogs() {
+  apiFetch("/api/logs?after="+lastLogAfter).then(function(data){
+    if(!data||!data.logs||!data.logs.length) return;
+    var c=document.getElementById("logContainer"),a=document.getElementById("autoScroll").checked;
+    var bt=c.scrollTop+c.clientHeight>=c.scrollHeight-30;
+    var empty=c.querySelector(".log-empty"); if(empty) empty.remove();
+    for(var i=0;i<data.logs.length;i++){
+      var l=document.createElement("div"); l.className="log-line";
+      var ts=document.createElement("span"); ts.className="log-ts"; ts.textContent=data.logs[i].ts; l.appendChild(ts);
+      var s=document.createElement("span"); s.className="log-stream "+data.logs[i].stream; s.textContent=data.logs[i].stream; l.appendChild(s);
+      var m=document.createElement("span"); m.className="log-msg "+data.logs[i].stream+"-msg"; m.textContent=data.logs[i].msg; l.appendChild(m);
+      c.appendChild(l);
+    }
+    lastLogAfter=data.total; document.getElementById("logCount").textContent="("+data.total+" 条)";
+    if(a&&bt) c.scrollTop=c.scrollHeight;
+  });
+}
+
+function clearLogs() { document.getElementById("logContainer").innerHTML='<div class="log-empty"><span>日志已清除</span></div>'; lastLogAfter=0; document.getElementById("logCount").textContent="(0 条)"; }
+
+function loadConfig() {
+  apiFetch("/api/config").then(function(d){
+    if(!d) return;
+    document.getElementById("cfgUrl").textContent=d.unity_base_url||"—";
+    document.getElementById("cfgTimeout").textContent=d.http_timeout?d.http_timeout+"s":"—";
+    document.getElementById("cfgScript").textContent=d.server_script||"—";
+    document.getElementById("cfgPort").textContent=d.dashboard_port||"5100";
+    document.getElementById("cfgPython").textContent=d.python_version||"—";
+  });
+}
+
+function init() {
+  loadConfig(); updateStatus();
+  logPoller=setInterval(fetchLogs,LOG_POLL_INTERVAL);
+  statusPoller=setInterval(updateStatus,STATUS_POLL_INTERVAL);
+  setTimeout(fetchLogs,200);
+  document.getElementById("targetObject").addEventListener("input",function(){ document.getElementById("labelTargetObject").textContent=getName(); });
+  getName();
+  document.getElementById("cmdInput").addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); sendCommand(); } });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeHelpModal(); });
+  document.getElementById("helpModal").addEventListener("click",function(e){ if(e.target===document.getElementById("helpModal")) closeHelpModal(); });
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
